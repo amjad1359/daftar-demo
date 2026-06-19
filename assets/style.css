@@ -1,0 +1,388 @@
+/* ============================================ */
+/*      سامانه دفتر پرستاری - استایل ضروری      */
+/* ============================================ */
+
+:root {
+    --primary: #4f46e5;
+    --primary-dark: #3730a3;
+    --secondary: #06b6d4;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --dark: #1e293b;
+    --light: #f8fafc;
+    --gray: #94a3b8;
+    --sidebar-w: 280px;
+    --header-h: 65px;
+    --radius: 12px;
+    --transition: 0.3s ease;
+}
+/* بارگذاری فونت وزیرمتن از سرور محلی */
+@font-face {
+    font-family: 'Vazirmatn';
+    src: url('/static/fonts/vazirmatn/Vazirmatn-Light.woff2') format('woff2');
+    font-weight: 300;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Vazirmatn';
+    src: url('/static/fonts/vazirmatn/Vazirmatn-Regular.woff2') format('woff2');
+    font-weight: 400; /* Normal */
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Vazirmatn';
+    src: url('/static/fonts/vazirmatn/Vazirmatn-Medium.woff2') format('woff2');
+    font-weight: 500;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Vazirmatn';
+    src: url('/static/fonts/vazirmatn/Vazirmatn-Bold.woff2') format('woff2');
+    font-weight: 700; /* Bold */
+    font-style: normal;
+    font-display: swap;
+}
+
+/* اعمال تنظیمات عمومی */
+* { 
+    margin: 0; 
+    padding: 0; 
+    box-sizing: border-box; 
+}
+
+body, input, select, textarea, button {
+    font-family: 'Vazirmatn', Tahoma, Arial, sans-serif !important;
+}
+
+
+
+
+
+body {
+    direction: rtl;
+    text-align: right;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+a { text-decoration: none; color: inherit; }
+ul { list-style: none; }
+button { cursor: pointer; border: none; outline: none; }
+input, select, textarea { outline: none; direction: rtl; text-align: right; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 10px; }
+
+/* ==================== لاگین ==================== */
+.login-wrap {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.login-box {
+    background: #fff;
+    border-radius: 20px;
+    padding: 35px 30px;
+    width: 100%;
+    max-width: 390px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+}
+
+.login-box h2 { font-size: 20px; font-weight: bold; color: var(--dark); text-align: center; margin-bottom: 5px; }
+.login-box .sub { font-size: 13px; color: var(--gray); text-align: center; margin-bottom: 22px; }
+.login-box label { font-size: 13px; font-weight: 600; color: #64748b; margin-bottom: 4px; display: block; }
+
+.login-box input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 2px solid #e2e8f0;
+    border-radius: var(--radius);
+    font-size: 14px;
+    background: #f8fafc;
+    margin-bottom: 10px;
+    transition: var(--transition);
+}
+
+.login-box input:focus { border-color: var(--primary); background: #fff; box-shadow: 0 0 0 3px rgba(79,70,229,0.08); }
+
+.login-box button {
+    width: 100%;
+    padding: 13px;
+    border-radius: var(--radius);
+    font-size: 15px;
+    font-weight: bold;
+    color: #fff;
+    background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+    cursor: pointer;
+    transition: var(--transition);
+    margin-top: 5px;
+}
+
+.login-box button:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(79,70,229,0.3); }
+.login-box .hint { text-align: center; font-size: 11px; color: var(--gray); margin-top: 10px; }
+
+/* ==================== آلرت ==================== */
+.alert {
+    border-radius: var(--radius) !important;
+    padding: 12px 16px !important;
+    font-size: 13px !important;
+    margin-top: 12px !important;
+    text-align: center;
+    border: none !important;
+}
+
+.alert-success { background: #d1fae5 !important; color: #065f46 !important; }
+.alert-danger { background: #fee2e2 !important; color: #991b1b !important; }
+.alert-warning { background: #fef3c7 !important; color: #92400e !important; }
+
+/* ==================== داشبورد ==================== */
+.dash-wrap { display: flex; min-height: 100vh; }
+
+/* ==================== هدر ==================== */
+.top-bar {
+    position: fixed;
+    top: 0;
+    right: var(--sidebar-w);
+    left: 0;
+    height: var(--header-h);
+    background: rgba(255,255,255,0.97);
+    border-bottom: 1px solid #f1f5f9;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    z-index: 100;
+    transition: var(--transition);
+}
+
+.menu-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    font-size: 18px;
+    color: var(--dark);
+    cursor: pointer;
+}
+
+.menu-btn:hover { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.top-date {
+    font-size: 13px;
+    color: #64748b;
+    background: #f8fafc;
+    padding: 7px 15px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+}
+
+.top-user {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #f8fafc;
+    padding: 5px 12px 5px 5px;
+    border-radius: 20px;
+    border: 1px solid #e2e8f0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.user-av {
+    width: 34px;
+    height: 34px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+/* ==================== سایدبار ==================== */
+.sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: var(--sidebar-w);
+    background: #111827;
+    color: #fff;
+    z-index: 200;
+    transition: var(--transition);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.side-brand {
+    padding: 22px 18px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    font-size: 28px;
+}
+
+.side-brand h3 { font-size: 16px; font-weight: bold; margin: 6px 0 0; }
+
+.side-user {
+    padding: 15px 18px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.side-av {
+    width: 38px;
+    height: 38px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+}
+
+.side-user p { margin: 0; font-size: 13px; font-weight: bold; }
+.side-user small { color: rgba(255,255,255,0.4); font-size: 10px; }
+
+.side-label {
+    padding: 18px 18px 8px;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: rgba(255,255,255,0.25);
+    font-weight: bold;
+}
+
+.side-nav { flex: 1; padding: 0 8px; }
+
+.side-nav li a {
+    padding: 11px 14px;
+    margin: 2px 0;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.7);
+    transition: 0.2s;
+}
+
+.side-nav li a:hover { background: rgba(255,255,255,0.08); color: #fff; }
+
+.side-logout {
+    padding: 16px 18px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.side-logout a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 11px 14px;
+    border-radius: 10px;
+    color: #fca5a5 !important;
+    font-size: 13px;
+    transition: 0.2s;
+}
+
+.side-logout a:hover { background: rgba(239,68,68,0.15); color: #fecaca !important; }
+
+/* ==================== محتوای اصلی ==================== */
+.main-area {
+    flex: 1;
+    margin-right: var(--sidebar-w);
+    padding: calc(var(--header-h) + 20px) 20px 20px;
+    transition: var(--transition);
+}
+
+.content-card {
+    background: rgba(255,255,255,0.97);
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.05);
+}
+
+.card-title { font-size: 18px; font-weight: bold; color: var(--dark); margin-bottom: 20px; }
+
+/* ==================== کارت‌های آمار ==================== */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.stat-box {
+    background: #fff;
+    border-radius: 14px;
+    padding: 18px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.04);
+    cursor: pointer;
+    border: 1px solid #f1f5f9;
+    transition: var(--transition);
+}
+
+.stat-box:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.08); }
+
+.s-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    color: #fff;
+}
+
+.s-blue { background: linear-gradient(135deg, #667eea, #764ba2); }
+.s-green { background: linear-gradient(135deg, #10b981, #059669); }
+.s-orange { background: linear-gradient(135deg, #f59e0b, #d97706); }
+.s-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+.s-info h3 { font-size: 22px; font-weight: bold; color: var(--dark); margin: 0; }
+.s-info p { font-size: 11px; color: var(--gray); margin: 2px 0 0; }
+
+/* ==================== رسپانسیو ==================== */
+@media (max-width: 992px) {
+    .sidebar { right: -100%; opacity: 0; }
+    .sidebar.open { right: 0; opacity: 1; box-shadow: 4px 0 30px rgba(0,0,0,0.3); }
+    .top-bar { right: 0; }
+    .menu-btn { display: flex; }
+    .main-area { margin-right: 0; }
+}
+
+@media (max-width: 576px) {
+    .login-box { padding: 25px 18px; max-width: 95%; }
+    .top-date { display: none; }
+    .stats-row { grid-template-columns: 1fr; }
+    .main-area { padding: calc(var(--header-h) + 10px) 10px 10px; }
+    .content-card { padding: 16px; }
+    .stat-box { padding: 14px; }
+    .s-icon { width: 38px; height: 38px; font-size: 16px; }
+    .s-info h3 { font-size: 18px; }
+}
