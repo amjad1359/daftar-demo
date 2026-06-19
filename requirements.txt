@@ -4,7 +4,7 @@ mysql-connector-python==8.1.0
 jdatetime==4.1.0
 pandas==2.0.3
 openpyxl==3.1.2
-Flask-Limiter==3.3.1
+Flask-Limiter==3.5.0
 requests==2.31.0
 Pillow==10.0.0
 gunicorn==21.2.0
