@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>چارت مدیریت بحران</title>
+<script src="/static/js/d3.v7.min.js"></script>
+<script src="/static/js/d3-flextree.js"></script>
+<script src="/static/js/d3-org-chart.min.js"></script>
+<script src="/static/js/chart.umd.min.js"></script>
+<style>
+    :root {
+        --primary: #1e3a8a; --primary-light: #3b82f6; --primary-soft: #eef2ff;
+        --success: #10b981; --danger: #ef4444; --warning: #f59e0b;
+        --dark: #1e293b; --gray: #64748b; --light-gray: #94a3b8;
+        --border: #e2e8f0; --bg: #f1f5f9; --card-bg: rgba(255,255,255,0.85);
+        --text: #1e293b; --text-secondary: #64748b;
+        --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    body.dark-mode {
+        --primary: #60a5fa; --primary-light: #93bbfd; --primary-soft: #1e293b;
+        --dark: #f1f5f9; --gray: #9ca3af; --light-gray: #6b7280;
+        --border: #334155; --bg: #0f172a; --card-bg: rgba(30,41,59,0.92);
+        --text: #f1f5f9; --text-secondary: #9ca3af;
+    }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+        font-family: 'Segoe UI', Tahoma, Arial, sans-serif;
+        direction:rtl; background: var(--bg); color: var(--text);
+        line-height: 1.6; min-height: 100vh;
+        transition: background 0.3s, color 0.3s;
+    }
+    .fade-in { animation: fadeIn 0.45s ease both; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+    .container { max-width:1440px; margin:0 auto; padding:20px 24px; }
+    .page-header {
+        background: linear-gradient(135deg, #0f2b5c 0%, #1e3c72 60%, #2a5298 100%);
+        color:white; border-radius:24px; padding:22px 32px; margin-bottom:24px;
+        display:flex; justify-content:space-between; align-items:center;
+        box-shadow: 0 10px 35px rgba(15,43,92,0.3); flex-wrap:wrap; gap:12px;
+    }
+    .page-header h2 { font-size:24px; font-weight:700; letter-spacing:-0.5px; }
+    .page-header .actions { display:flex; gap:10px; align-items:center; }
+    .dark-toggle {
+        background: rgba(255,255,255,0.15); color:white; border:1px solid rgba(255,255,255,0.25);
+        padding:8px 12px; border-radius:12px; cursor:pointer; font-size:18px; transition: 0.2s; line-height:1;
+    }
+    .dark-toggle:hover { background: rgba(255,255,255,0.25); }
+    .back-btn {
+        background: rgba(255,255,255,0.1); color:white; text-decoration:none;
+        padding:10px 20px; border:1px solid rgba(255,255,255,0.25);
+        border-radius:12px; font-size:13px; font-weight:600;
+        backdrop-filter: blur(4px); transition: var(--transition);
+    }
+    .back-btn:hover { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); }
+    .main-tabs { display:flex; gap:8px; margin-bottom:24px; border-bottom:2px solid var(--border); flex-wrap:wrap; }
+    .main-tab {
+        padding:12px 24px; font-size:14px; font-weight:600; border:none;
+        background:none; color: var(--light-gray); cursor:pointer;
+        border-bottom:3px solid transparent; margin-bottom:-2px;
+        transition: var(--transition); font-family:inherit;
+    }
+    .main-tab:hover { color: var(--text); }
+    .main-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-content { display:none; animation:fadeIn 0.4s ease; }
+    .tab-content.active { display:block; }
+    .sub-tabs { display:flex; gap:4px; margin-bottom:16px; border-bottom:1px solid var(--border); }
+    .sub-tab {
+        padding:9px 18px; font-size:12px; font-weight:600; border:none;
+        background:none; color: var(--light-gray); cursor:pointer;
+        border-bottom:2px solid transparent; margin-bottom:-1px; transition: var(--transition); font-family:inherit;
+    }
+    .sub-tab:hover { color: var(--text); }
+    .sub-tab.active { color: var(--success); border-bottom-color: var(--success); }
+    .sub-content { display:none; }
+    .sub-content.active { display:block; }
+    .card {
+        background: var(--card-bg); backdrop-filter: blur(12px);
+        border-radius: 20px; padding:20px 24px; border:1px solid var(--border);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.03); margin-bottom:20px;
+    }
+    .card-title {
+        font-size:16px; font-weight:bold; color: var(--text);
+        margin-bottom:18px; padding-bottom:12px; border-bottom:2px solid var(--border);
+        display:flex; align-items:center; gap:10px;
+    }
+    .card-title .count {
+        background: var(--primary); color:white; font-size:11px;
+        padding:4px 14px; border-radius:20px; font-weight:normal; margin-right:auto; letter-spacing:0.5px;
+    }
+    .form-row { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-bottom:12px; }
+    .form-group { flex:1; min-width:110px; }
+    .form-group label { display:block; font-size:12px; font-weight:600; color: var(--text-secondary); margin-bottom:5px; }
+    .form-group input, .form-group select, .form-group textarea {
+        width:100%; padding:10px 14px; border:2px solid var(--border);
+        border-radius:12px; font-size:13px; font-family:inherit;
+        transition: var(--transition); background: white; color: var(--dark);
+    }
+    body.dark-mode .form-group input,
+    body.dark-mode .form-group select,
+    body.dark-mode .form-group textarea { background: #1e293b; color: #f1f5f9; }
+    .form-group textarea { min-height:60px; resize:vertical; }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+        border-color: var(--primary-light); outline:none; box-shadow: 0 0 0 4px rgba(59,130,246,0.12);
+    }
+    .btn {
+        display:inline-flex; align-items:center; justify-content:center;
+        gap:6px; padding:10px 18px; border:none; border-radius:12px;
+        font-size:13px; font-weight:600; cursor:pointer; font-family:inherit;
+        transition: all 0.2s; white-space:nowrap; box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 6px 14px rgba(0,0,0,0.08); }
+    .btn-primary { background: var(--primary); color:white; }
+    .btn-success { background: var(--success); color:white; }
+    .btn-danger { background: var(--danger); color:white; }
+    .btn-warning { background: var(--warning); color:white; }
+    .btn-sm { padding:7px 14px; font-size:12px; }
+    .btn-xs { padding:5px 10px; font-size:11px; border-radius:8px; }
+    .list-item {
+        display:flex; align-items:center; gap:10px; padding:12px 16px;
+        background: var(--card-bg); border:1px solid var(--border);
+        border-right:4px solid var(--primary); border-radius:12px;
+        margin-bottom:8px; transition: var(--transition); backdrop-filter: blur(4px); cursor: grab;
+    }
+    .list-item:active { cursor: grabbing; }
+    .list-item:hover { border-color: var(--primary-light); transform: translateX(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.04); }
+    .list-item .item-id { font-family:monospace; font-size:11px; color: var(--gray); background:white; padding:4px 10px; border-radius:8px; }
+    body.dark-mode .list-item .item-id { background:#334155; }
+    .list-item .item-info { flex:1; font-size:13px; }
+    .list-item .item-info strong { color: var(--text); display:block; }
+    .list-item .item-info small { color: var(--text-secondary); display:block; margin-top:2px; }
+    .color-dot { width:28px; height:28px; border-radius:50%; border:2px solid var(--border); flex-shrink:0; }
+    .chart-toolbar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:15px; }
+    .search-input {
+        flex:1; min-width:200px; padding:10px 16px; border:2px solid var(--border);
+        border-radius:12px; font-size:13px; background: white;
+    }
+    body.dark-mode .search-input { background: #1e293b; color: #f1f5f9; }
+    .search-input:focus { border-color: var(--primary-light); outline:none; }
+    #org-chart-container { width: 100%; min-height: 600px; overflow: auto; }
+    .chart-container {
+        max-height: 75vh; overflow: auto; border-radius:12px;
+        background: var(--card-bg); backdrop-filter: blur(4px); position: relative;
+    }
+    .chart-container:fullscreen { max-height: 100vh; height:100%; padding:20px; border-radius:0; }
+    .chart-controls {
+        position: absolute; top:10px; left:10px; display:flex; gap:5px; z-index:10;
+    }
+    .chart-ctrl-btn {
+        background: white; border:1px solid var(--border); border-radius:8px;
+        padding:6px 10px; font-size:14px; cursor:pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    body.dark-mode .chart-ctrl-btn { background:#1e293b; color: #f1f5f9; }
+    .chart-ctrl-btn:hover { background: var(--primary-soft); }
+    .tooltip-chart {
+        position: fixed; pointer-events: none; background: rgba(0,0,0,0.8); color:white;
+        padding:8px 14px; border-radius:8px; font-size:12px; z-index:9999; display:none;
+    }
+    .empty { text-align:center; padding:40px 20px; color: var(--text-secondary); font-size:15px; }
+    .modal-overlay {
+        display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+        background:rgba(0,0,0,0.4); backdrop-filter: blur(6px);
+        z-index:500; justify-content:center; align-items:center;
+    }
+    .modal-overlay.show { display:flex; }
+    .modal {
+        background: var(--card-bg); backdrop-filter: blur(15px);
+        border-radius:24px; padding:28px; width:90%; max-width:520px;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.15); animation: modalPop 0.3s ease;
+        max-height:85vh; overflow-y:auto;
+    }
+    @keyframes modalPop { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
+    .modal h4 { margin-bottom:20px; color: var(--text); text-align:center; font-size:18px; }
+    .modal .modal-btns { display:flex; gap:10px; justify-content:center; margin-top:20px; }
+    .toast-box {
+        position:fixed; bottom:20px; right:20px; z-index:10000;
+        display:flex; flex-direction:column; gap:10px; pointer-events:none;
+    }
+    .toast {
+        display:flex; align-items:center; gap:10px; padding:14px 22px;
+        border-radius:14px; color:white; font-size:14px; font-weight:600;
+        box-shadow:0 15px 30px rgba(0,0,0,0.2); backdrop-filter: blur(10px);
+        animation: slideUp 0.4s ease; pointer-events:auto;
+    }
+    .toast.ok { background: linear-gradient(135deg, #059669, #10b981); }
+    .toast.err { background: linear-gradient(135deg, #dc2626, #ef4444); }
+    @keyframes slideUp { from { opacity:0; transform:translateY(30px); } to { opacity:1; transform:translateY(0); } }
+    .stats-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(180px,1fr)); gap:15px; margin-bottom:20px; }
+    .stat-card { background: var(--card-bg); border-radius:16px; padding:20px; text-align:center; border:1px solid var(--border); }
+    .stat-value { font-size:28px; font-weight:bold; color: var(--primary); }
+    .stat-label { font-size:13px; color: var(--text-secondary); margin-top:5px; }
+    @media (max-width:768px) {
+        .page-header { flex-direction:column; text-align:center; }
+        .form-row { flex-direction:column; }
+        #chart-container { max-height: 60vh; }
+        .tree-list-mobile { display:none; }
+    }
+</style>
+</head>
+<body>
+<div class="toast-box" id="toast-box"></div>
+<div class="tooltip-chart" id="chart-tooltip"></div>
+
+<!-- مودال‌ها -->
+<div class="modal-overlay" id="del-modal">
+    <div class="modal">
+        <h4>⚠️ تأیید حذف</h4>
+        <p id="del-msg" style="text-align:center; margin:15px 0;"></p>
+        <div class="modal-btns">
+            <button class="btn btn-danger" onclick="confirmDelete()">بله، حذف شود</button>
+            <button class="btn btn-sm" onclick="closeModal()" style="background:var(--border);color:var(--text);">انصراف</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="role-modal">
+    <div class="modal">
+        <h4 id="role-modal-title">➕ نقش جدید</h4>
+        <div class="form-group"><label>نام نقش *</label><input type="text" id="role-name"></div>
+        <div class="form-group"><label>شرح وظایف</label><textarea id="role-desc" rows="2"></textarea></div>
+        <div class="form-row">
+            <div class="form-group"><label>نقش بالادست</label><select id="role-parent"></select></div>
+            <div class="form-group"><label>سطح</label><input type="number" id="role-level" value="1" min="0" max="10"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>ترتیب</label><input type="number" id="role-order" value="1" min="1"></div>
+            <div class="form-group"><label>رنگ</label><input type="color" id="role-color" value="#3498db" style="height:40px;padding:4px;"></div>
+        </div>
+        <input type="hidden" id="role-edit-id" value="">
+        <div class="modal-btns">
+            <button class="btn btn-primary" onclick="saveRole()">💾 ذخیره</button>
+            <button class="btn btn-sm" onclick="closeRoleModal()" style="background:var(--border);color:var(--text);">انصراف</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="assign-modal">
+    <div class="modal">
+        <h4 id="assign-modal-title">➕ انتصاب جدید</h4>
+        <div class="form-row">
+            <div class="form-group"><label>پرسنل *</label><select id="assign-person"></select></div>
+            <div class="form-group"><label>نقش *</label><select id="assign-role"></select></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label>بحران *</label><select id="assign-crisis"></select></div>
+            <div class="form-group"><label>سطح بحران *</label><select id="assign-level"></select></div>
+        </div>
+        <div class="form-group"><label>توضیحات</label><input type="text" id="assign-desc"></div>
+        <input type="hidden" id="assign-edit-id" value="">
+        <div class="modal-btns">
+            <button class="btn btn-primary" onclick="saveAssign()">💾 ذخیره</button>
+            <button class="btn btn-sm" onclick="closeAssignModal()" style="background:var(--border);color:var(--text);">انصراف</button>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="help-modal">
+    <div class="modal" style="max-width:650px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;">
+            <h4 style="margin:0;">📚 راهنمای چارت بحران</h4>
+            <button onclick="closeHelp()" style="font-size:22px;background:none;border:none;cursor:pointer;color:var(--gray);">✕</button>
+        </div>
+        <div style="line-height:2.2;font-size:14px;">
+            <p><strong>🔹 ساختار سلسله‌مراتبی:</strong> چارت بر اساس فیلدهای <code>mahal1</code> (والد) و <code>mahal2</code> (سطح) سازماندهی می‌شود.</p>
+            <p><strong>🔹 کلیک روی گره‌ها:</strong> برای باز/بسته کردن زیرمجموعه‌ها کلیک کنید.</p>
+            <p><strong>🔹 جستجو:</strong> با تایپ در فیلد جستجو، گره‌های مطابق هایلایت می‌شوند.</p>
+            <p><strong>🔹 فیلتر سطح بحران:</strong> با انتخاب یک سطح، فقط نقش‌های مربوطه نمایش داده می‌شوند.</p>
+            <p><strong>🔹 خروجی:</strong> تصویر (PNG)، PDF، CSV پشتیبانی می‌شوند.</p>
+            <p><strong>💡 نکته:</strong> برای ویرایش سریع یک عنوان یا سطح، روی دکمه ✏️ کلیک کنید.</p>
+        </div>
+        <div class="modal-btns">
+            <button class="btn btn-primary" onclick="closeHelp()">متوجه شدم</button>
+        </div>
+    </div>
+</div>
+
+<div class="container fade-in">
+    <div class="page-header">
+        <h2>🚨 داشبورد مدیریت بحران و ساختار سازمانی</h2>
+        <div class="actions">
+            <button class="dark-toggle" id="dark-toggle" title="تغییر حالت تاریک/روشن">🌓</button>
+            <a href="/module/admin" class="back-btn">⬅️ بازگشت به پنل مدیریت</a>
+        </div>
+    </div>
+
+    <div class="main-tabs">
+        <button class="main-tab active" onclick="switchMainTab('chart')">📊 چارت سازمانی</button>
+        <button class="main-tab" onclick="switchMainTab('dashboard')">📈 داشبورد</button>
+        <button class="main-tab" onclick="switchMainTab('manage')">⚙️ مدیریت و تنظیمات</button>
+    </div>
+
+    <div id="tab-chart" class="tab-content active">
+        <div class="card">
+            <div class="card-title">
+                📊 ساختار چارت بحران
+                <div style="margin-right:auto; display:flex; gap:8px;">
+                    <button class="btn btn-sm btn-primary" onclick="showHelp()">📖 راهنما</button>
+                    <button class="btn btn-sm btn-success" onclick="exportAsImage()">📸 تصویر</button>
+                    <button class="btn btn-sm btn-success" onclick="exportAsPDF()">📄 PDF</button>
+                    <button class="btn btn-sm" onclick="exportCSV()">📊 CSV</button>
+                </div>
+            </div>
+
+            <div class="chart-toolbar">
+                <input type="text" class="search-input" id="chart-search" placeholder="🔍 جستجوی نام یا سمت..." oninput="highlightChart()">
+                <select id="chart-level-filter" onchange="loadChart(true)" style="padding:10px 14px; border-radius:12px; border:2px solid var(--border);">
+                    <option value="">همه سطوح</option>
+                </select>
+                <button class="btn btn-sm" id="mobile-list-btn" onclick="toggleMobileView()" style="display:none;">📋 لیست</button>
+                <button class="btn btn-sm" onclick="toggleChartFullscreen()" title="تمام‌صفحه (F)">⛶</button>
+                <button class="btn btn-sm" onclick="expandAllNodes()" title="باز کردن همه">🔽</button>
+                <button class="btn btn-sm" onclick="collapseAllNodes()" title="بستن همه">🔼</button>
+                <button class="btn btn-sm" onclick="resetZoom()" title="تنظیم مجدد بزرگنمایی">↺</button>
+            </div>
+
+            <div id="chart-container" class="chart-container">
+                <div class="empty">در حال بارگذاری چارت...</div>
+                <div class="chart-controls" style="display:none;">
+                    <button class="chart-ctrl-btn" onclick="zoomIn()">➕</button>
+                    <button class="chart-ctrl-btn" onclick="zoomOut()">➖</button>
+                    <button class="chart-ctrl-btn" onclick="resetZoom()">↺</button>
+                </div>
+            </div>
+            <div id="mobile-chart-list" class="tree-list-mobile"></div>
+        </div>
+    </div>
+
+    <div id="tab-dashboard" class="tab-content">
+        <div class="card">
+            <div class="card-title">📈 داشبورد آماری چارت بحران</div>
+            <div class="stats-grid" id="stats-container">
+                <div class="stat-card"><div class="stat-value" id="stat-roles">-</div><div class="stat-label">تعداد نقش‌ها</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-assigns">-</div><div class="stat-label">انتصابات</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-empty">-</div><div class="stat-label">نقش‌های بدون پرسنل</div></div>
+                <div class="stat-card"><div class="stat-value" id="stat-avg">-</div><div class="stat-label">میانگین انتصاب به نقش</div></div>
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:20px;">
+                <div style="flex:1; min-width:300px;"><canvas id="chart-crisis"></canvas></div>
+                <div style="flex:1; min-width:300px;"><canvas id="chart-levels"></canvas></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-manage" class="tab-content">
+        <div class="sub-tabs">
+            <button class="sub-tab active" onclick="switchSubTab('roles')">🎭 نقش‌ها</button>
+            <button class="sub-tab" onclick="switchSubTab('assigns')">📋 انتصابات</button>
+            <button class="sub-tab" onclick="switchSubTab('titles')">🏷️ عناوین</button>
+            <button class="sub-tab" onclick="switchSubTab('levels')">📈 سطوح</button>
+        </div>
+
+        <div id="sub-roles" class="sub-content active">
+            <div class="card">
+                <div class="card-title">🎭 مدیریت نقش‌های عملیاتی <span class="count" id="role-count">۰</span></div>
+                <button class="btn btn-primary btn-sm" onclick="openRoleModal()" style="margin-bottom:15px;">➕ نقش جدید</button>
+                <div id="role-list"><div class="empty">در حال بارگذاری...</div></div>
+            </div>
+        </div>
+
+        <div id="sub-assigns" class="sub-content">
+            <div class="card">
+                <div class="card-title">📋 مدیریت انتصابات <span class="count" id="assign-count">۰</span></div>
+                <button class="btn btn-primary btn-sm" onclick="openAssignModal()" style="margin-bottom:15px;">➕ انتصاب جدید</button>
+                <div id="assign-list"><div class="empty">در حال بارگذاری...</div></div>
+            </div>
+        </div>
+
+        <div id="sub-titles" class="sub-content">
+            <div class="card">
+                <div class="card-title">🏷️ مدیریت عناوین بحران <span class="count" id="title-count">۰</span></div>
+                <div class="form-row">
+                    <div class="form-group"><label>عنوان جدید</label><input type="text" id="new-title" placeholder="عنوان بحران..."></div>
+                    <div class="form-group" style="flex:0 0 auto;"><label>&nbsp;</label><button class="btn btn-primary" onclick="addTitle()">➕ افزودن</button></div>
+                </div>
+                <div id="title-list"><div class="empty">در حال بارگذاری...</div></div>
+            </div>
+        </div>
+
+        <div id="sub-levels" class="sub-content">
+            <div class="card">
+                <div class="card-title">📈 مدیریت سطوح بحران <span class="count" id="level-count">۰</span></div>
+                <div class="form-row">
+                    <div class="form-group"><label>نام سطح</label><input type="text" id="new-level-name"></div>
+                    <div class="form-group"><label>توضیحات</label><input type="text" id="new-level-desc"></div>
+                    <div class="form-group" style="flex:0 0 auto;"><label>&nbsp;</label><button class="btn btn-primary" onclick="addLevel()">➕ ثبت</button></div>
+                </div>
+                <div id="level-list"><div class="empty">در حال بارگذاری...</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/html2canvas.min.js"></script>
+<script src="/static/js/jspdf.umd.min.js"></script>
+
+<script>
+// ===================== حالت تاریک =====================
+(function() {
+    var darkToggle = document.getElementById('dark-toggle');
+    if (localStorage.getItem('darkMode') === 'true') document.body.classList.add('dark-mode');
+    darkToggle.addEventListener('click', function() {
+        document.body.classList.toggle('dark-mode');
+        localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+        if (window.dashCharts) {
+            Object.values(window.dashCharts).forEach(function(c) { c.destroy(); });
+            window.dashCharts = {};
+            if (window.currentTab === 'dashboard') renderDashboard();
+        }
+    });
+})();
+
+// ===================== متغیرهای سراسری =====================
+var delTarget = null, delType = null;
+var currentTab = 'chart';
+var chartDataCache = null;
+var currentOrgChart = null;
+var nodeFoldState = {};
+
+// ===================== توابع عمومی =====================
+function escHTML(str) {
+    if (!str) return '';
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, type) {
+    var box = document.getElementById('toast-box');
+    var t = document.createElement('div');
+    t.className = 'toast ' + (type === 'ok' ? 'ok' : 'err');
+    t.innerHTML = '<span>' + (type === 'ok' ? '✅' : '❌') + '</span><span>' + msg + '</span>';
+    box.appendChild(t);
+    setTimeout(function() { if (t.parentElement) t.remove(); }, 4000);
+}
+
+function switchMainTab(tab) {
+    currentTab = tab;
+    var mainTabs = document.querySelectorAll('.main-tab');
+    var tabContents = document.querySelectorAll('.tab-content');
+    mainTabs.forEach(function(t) { t.classList.remove('active'); });
+    tabContents.forEach(function(c) { c.classList.remove('active'); });
+    if (tab === 'chart') {
+        mainTabs[0].classList.add('active');
+        document.getElementById('tab-chart').classList.add('active');
+        loadChart();
+    } else if (tab === 'dashboard') {
+        mainTabs[1].classList.add('active');
+        document.getElementById('tab-dashboard').classList.add('active');
+        renderDashboard();
+    } else {
+        mainTabs[2].classList.add('active');
+        document.getElementById('tab-manage').classList.add('active');
+        loadRoles();
+    }
+}
+
+function switchSubTab(tab) {
+    var subTabs = document.querySelectorAll('.sub-tab');
+    var subContents = document.querySelectorAll('.sub-content');
+    subTabs.forEach(function(t) { t.classList.remove('active'); });
+    subContents.forEach(function(c) { c.classList.remove('active'); });
+    var idx = {roles:0, assigns:1, titles:2, levels:3}[tab];
+    subTabs[idx].classList.add('active');
+    document.getElementById('sub-' + tab).classList.add('active');
+    if (tab === 'roles') loadRoles();
+    else if (tab === 'assigns') loadAssigns();
+    else if (tab === 'titles') loadTitles();
+    else if (tab === 'levels') loadLevels();
+}
+
+// ===================== مدیریت حذف =====================
+function closeModal() { document.getElementById('del-modal').classList.remove('show'); delTarget = null; }
+async function confirmDelete() {
+    if (!delTarget || !delType) return;
+    var fd = new FormData(); fd.append('id', delTarget);
+    var urlMap = {
+        role: '/module/admin/crisis/role/delete',
+        assign: '/module/admin/crisis/assign/delete',
+        title: '/module/admin/crisis/title/delete',
+        level: '/module/admin/crisis/level/delete'
+    };
+    try {
+        var r = await fetch(urlMap[delType], {method: 'POST', body: fd});
+        var d = await r.json();
+        toast(d.message, d.success ? 'ok' : 'err');
+        closeModal();
+        if (delType === 'role') loadRoles();
+        else if (delType === 'assign') loadAssigns();
+        else if (delType === 'title') loadTitles();
+        else if (delType === 'level') loadLevels();
+        loadChart(true); chartDataCache = null;
+    } catch(e) { toast('خطا', 'err'); closeModal(); }
+}
+function askDel(id, type, name) {
+    delTarget = id; delType = type;
+    document.getElementById('del-msg').textContent = 'آیا از حذف "' + name + '" اطمینان دارید؟';
+    document.getElementById('del-modal').classList.add('show');
+}
+
+function showHelp() { document.getElementById('help-modal').classList.add('show'); }
+function closeHelp() { document.getElementById('help-modal').classList.remove('show'); }
+document.getElementById('help-modal').addEventListener('click', function(e) { if(e.target === this) closeHelp(); });
+
+// ===================== تمام‌صفحه چارت =====================
+function toggleChartFullscreen() {
+    var container = document.getElementById('chart-container');
+    if (!document.fullscreenElement) {
+        container.requestFullscreen().catch(function() {});
+    } else {
+        document.exitFullscreen();
+    }
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.show').forEach(function(m) { m.classList.remove('show'); });
+        if (document.fullscreenElement) document.exitFullscreen();
+    }
+    if (e.key === 'f' && !e.ctrlKey && !e.metaKey && document.activeElement.tagName !== 'INPUT' && currentTab === 'chart') {
+        e.preventDefault();
+        toggleChartFullscreen();
+    }
+});
+
+// ===================== بارگذاری داده چارت =====================
+async function loadChart(forceRefresh) {
+    if (!forceRefresh && chartDataCache) { renderChart(chartDataCache); return; }
+    var levelId = document.getElementById('chart-level-filter').value;
+    var url = levelId ? '/module/admin/crisis/chart/data?level=' + levelId : '/module/admin/crisis/chart/data';
+    try {
+        var r = await fetch(url); var d = await r.json();
+        chartDataCache = d;
+        renderChart(d);
+        buildMobileList(d);
+    } catch(e) { document.getElementById('chart-container').innerHTML = '<div class="empty">خطا در بارگذاری</div>'; }
+}
+
+async function loadChartLevels() {
+    var r = await fetch('/module/admin/crisis/levels/list'); var d = await r.json();
+    var sel = document.getElementById('chart-level-filter');
+    sel.innerHTML = '<option value="">همه سطوح</option>';
+    if (d.items) d.items.forEach(function(item) {
+        sel.innerHTML += '<option value="' + item.Id_sath_bohran + '">' + escHTML(item.nam_sath_bohran) + '</option>';
+    });
+}
+
+// ---------- ساخت داده برای D3 ----------
+function buildTreeData(roles, assignments) {
+    var assignMap = {};
+    (assignments || []).forEach(function(a) {
+        if (!assignMap[a.id_nam_nagsh]) assignMap[a.id_nam_nagsh] = [];
+        assignMap[a.id_nam_nagsh].push(a.person_name || '');
+    });
+    return roles.map(function(r) {
+        return {
+            id: r.ID_onvan_naghsh_bohran,
+            parentId: r.mahal1 && r.mahal1 != 0 ? r.mahal1 : null,
+            name: r.nam_onvan_naghsh_bohran || '',
+            title: r.tozihat || '',
+            level: r.mahal2 || 0,
+            color: r.rang_bohran || '#3498db',
+            _persons: assignMap[r.ID_onvan_naghsh_bohran] || [],
+            _roleId: r.ID_onvan_naghsh_bohran,
+            _order: r.mahal4 || 0
+        };
+    });
+}
+
+// ---------- محاسبه رنگ متن خوانا ----------
+function getContrastYIQ(hexcolor) {
+    var r = parseInt(hexcolor.substr(1,2),16);
+    var g = parseInt(hexcolor.substr(3,2),16);
+    var b = parseInt(hexcolor.substr(5,2),16);
+    var yiq = ((r*299)+(g*587)+(b*114))/1000;
+    return (yiq >= 128) ? '#000000' : '#ffffff';
+}
+
+// ---------- استایل دهی خطوط چارت ----------
+function styleLinks() {
+    var svg = d3.select('#chart-container svg');
+    if (!svg.empty()) {
+        svg.selectAll('path[fill="none"]')
+            .attr('stroke-width', 3)      // ضخامت بیشتر برای وضوح
+            .attr('stroke', '#4a5568')    // رنگ تیره‌تر
+            .attr('opacity', 1);
+    }
+}
+
+// ---------- رندر چارت درختی ----------
+function renderChart(data) {
+    var container = document.getElementById('chart-container');
+    container.innerHTML = '';
+
+    if (!data || !data.roles || !data.roles.length) {
+        container.innerHTML = '<div class="empty">نقشی برای نمایش وجود ندارد</div>';
+        return;
+    }
+
+    var flatData = buildTreeData(data.roles, data.assignments);
+
+    // بازگرداندن وضعیت تاشدگی
+    flatData.forEach(function(n) {
+        if (nodeFoldState[n.id] === false) n._collapsed = true;
+    });
+
+    try {
+        var chart = new d3.OrgChart()
+            .container('#chart-container')
+            .data(flatData)
+            .rootMargin(60)
+            .nodeWidth(function() { return 230; })
+            .nodeHeight(function() { return 150; })
+            .siblingsMargin(function() { return 45; })
+            .childrenMargin(function() { return 60; })
+            .compactMarginPair(function() { return 35; })
+            .neighbourMargin(function() { return 25; })
+            .onNodeClick(function(node) {
+                toggleNode(node.data.id);
+            })
+            .nodeContent(function(node) {
+                var d = node.data;
+                var persons = d._persons || [];
+                var personStr = persons.length
+                    ? persons.slice(0, 3).join(', ') + (persons.length > 3 ? ' +' + (persons.length - 3) : '')
+                    : 'بدون پرسنل';
+
+                var bgColor = d.color || '#3498db';
+                var textColor = getContrastYIQ(bgColor);
+                var badgeBg = (textColor === '#ffffff') ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.15)';
+                var badgeTextColor = textColor;
+
+                var html = '<div class="org-node" style="background:' + bgColor + '; color:' + textColor + '; padding:12px; border-radius:12px; height:100%; box-shadow: 0 4px 12px rgba(0,0,0,0.2); display:flex; flex-direction:column; justify-content:center; text-align:center;">';
+                html += '<div style="font-weight:bold; font-size:14px; line-height:1.3;">' + d.name + '</div>';
+                html += '<div style="font-size:11px; margin-top:4px; opacity:0.9;">' + (d.title ? d.title.substring(0,40) : '') + '</div>';
+                html += '<div style="font-size:10px; margin-top:5px; background:' + badgeBg + '; color:' + badgeTextColor + '; border-radius:20px; padding:2px 8px;">👤 ' + personStr + '</div>';
+                html += '<div style="font-size:18px; margin-top:4px; opacity:0.7;">' + (d._collapsed ? '▶' : '▼') + '</div>';
+                html += '</div>';
+                return html;
+            })
+            .render();
+
+        currentOrgChart = chart;
+        nodeFoldState = {};
+        flatData.forEach(function(n) { if (n._collapsed) nodeFoldState[n.id] = false; });
+
+        // نمایش کنترل‌های بزرگنمایی
+        var controls = container.querySelector('.chart-controls');
+        if (controls) controls.style.display = 'flex';
+
+        // غیرفعال کردن زوم ماوس (اسکرول) روی SVG
+        var svg = d3.select('#chart-container svg');
+        if (!svg.empty()) {
+            svg.on('wheel', function(event) {
+                event.stopPropagation();
+            });
+        }
+
+        // استایل دهی خطوط
+        styleLinks();
+
+        // افزودن تولتیپ
+        addTooltipToNodes();
+
+    } catch (error) {
+        console.error('OrgChart render error:', error);
+        container.innerHTML = '<div class="empty">خطا در رسم چارت D3. لطفاً کنسول را بررسی کنید.</div>';
+    }
+}
+
+function toggleNode(nodeId) {
+    if (!currentOrgChart) return;
+    var node = currentOrgChart.getNodeById(nodeId);
+    if (node) {
+        if (node.children) {
+            currentOrgChart.collapse(nodeId);
+            nodeFoldState[nodeId] = false;
+        } else {
+            currentOrgChart.expand(nodeId);
+            nodeFoldState[nodeId] = true;
+        }
+        // بازاستایل دهی خطوط پس از تغییر
+        setTimeout(styleLinks, 100);
+    }
+}
+
+function expandAllNodes() {
+    if (!currentOrgChart) return;
+    currentOrgChart.expandAll();
+    nodeFoldState = {};
+    setTimeout(styleLinks, 100);
+}
+
+function collapseAllNodes() {
+    if (!currentOrgChart) return;
+    currentOrgChart.collapseAll();
+    nodeFoldState = {};
+    setTimeout(styleLinks, 100);
+}
+
+// توابع زوم دستی (مستقل از کتابخانه)
+function zoomIn() {
+    var svg = d3.select('#chart-container svg');
+    if (svg.empty()) return;
+    var g = svg.select('g');
+    if (g.empty()) return;
+    var transform = d3.zoomTransform(g.node());
+    var newScale = Math.min(transform.k * 1.3, 2.5);
+    g.transition().duration(300)
+        .call(d3.zoom().transform, d3.zoomIdentity.translate(transform.x, transform.y).scale(newScale));
+}
+
+function zoomOut() {
+    var svg = d3.select('#chart-container svg');
+    if (svg.empty()) return;
+    var g = svg.select('g');
+    if (g.empty()) return;
+    var transform = d3.zoomTransform(g.node());
+    var newScale = Math.max(transform.k * 0.7, 0.3);
+    g.transition().duration(300)
+        .call(d3.zoom().transform, d3.zoomIdentity.translate(transform.x, transform.y).scale(newScale));
+}
+
+function resetZoom() {
+    var svg = d3.select('#chart-container svg');
+    if (svg.empty()) return;
+    var g = svg.select('g');
+    if (g.empty()) return;
+    g.transition().duration(300)
+        .call(d3.zoom().transform, d3.zoomIdentity);
+}
+
+// تولتیپ پیشرفته
+function addTooltipToNodes() {
+    var tooltip = document.getElementById('chart-tooltip');
+    var container = document.getElementById('org-chart-container');
+    if (!container) return;
+    var nodes = container.querySelectorAll('.org-node');
+    nodes.forEach(function(el) {
+        el.addEventListener('mouseenter', function() {
+            var name = this.querySelector('div:first-child').textContent;
+            var persons = this.querySelector('div:last-child').textContent;
+            tooltip.style.display = 'block';
+            tooltip.innerHTML = '<strong>' + name + '</strong><br>' + persons;
+        });
+        el.addEventListener('mousemove', function(e) {
+            tooltip.style.left = (e.pageX + 15) + 'px';
+            tooltip.style.top = (e.pageY + 15) + 'px';
+        });
+        el.addEventListener('mouseleave', function() {
+            tooltip.style.display = 'none';
+        });
+    });
+}
+
+// جستجو و هایلایت
+function highlightChart() {
+    var term = document.getElementById('chart-search').value.trim().toLowerCase();
+    if (!currentOrgChart) return;
+    var container = document.getElementById('org-chart-container');
+    var nodes = container.querySelectorAll('.org-node');
+    nodes.forEach(function(el) {
+        var text = el.textContent.toLowerCase();
+        if (!term || text.includes(term)) {
+            el.style.opacity = 1;
+            el.style.boxShadow = '0 0 8px rgba(0,0,0,0.3)';
+        } else {
+            el.style.opacity = 0.3;
+            el.style.boxShadow = 'none';
+        }
+    });
+}
+
+// ===================== لیست موبایل =====================
+function buildMobileList(data) {
+    var mlist = document.getElementById('mobile-chart-list');
+    if (!data || !data.roles || !data.roles.length) { mlist.innerHTML = ''; return; }
+    var assignMap = {};
+    if (data.assignments) data.assignments.forEach(function(a) {
+        if (!assignMap[a.id_nam_nagsh]) assignMap[a.id_nam_nagsh] = [];
+        assignMap[a.id_nam_nagsh].push(escHTML(a.person_name));
+    });
+    var html = '<div style="padding:10px;">';
+    data.roles.filter(function(r) { return r.nam_onvan_naghsh_bohran; }).forEach(function(role) {
+        html += '<div class="list-item" style="border-right-color:' + (role.rang_bohran || '#3498db') + '">';
+        html += '<span class="color-dot" style="background:' + (role.rang_bohran || '#3498db') + '"></span>';
+        html += '<div class="item-info"><strong>' + escHTML(role.nam_onvan_naghsh_bohran) + '</strong>';
+        html += '<small>👥 ' + ((assignMap[role.ID_onvan_naghsh_bohran] || []).join('، ') || 'بدون پرسنل') + '</small></div>';
+        html += '</div>';
+    });
+    html += '</div>';
+    mlist.innerHTML = html;
+    if (window.innerWidth <= 768) {
+        document.getElementById('mobile-list-btn').style.display = 'inline-block';
+        document.getElementById('chart-container').style.display = 'none';
+        mlist.style.display = 'block';
+    } else {
+        document.getElementById('mobile-list-btn').style.display = 'none';
+        mlist.style.display = 'none';
+        document.getElementById('chart-container').style.display = 'block';
+    }
+}
+
+function toggleMobileView() {
+    var chartDiv = document.getElementById('chart-container');
+    var mlist = document.getElementById('mobile-chart-list');
+    if (chartDiv.style.display === 'none') {
+        chartDiv.style.display = 'block';
+        mlist.style.display = 'none';
+        document.getElementById('mobile-list-btn').textContent = '📋 لیست';
+    } else {
+        chartDiv.style.display = 'none';
+        mlist.style.display = 'block';
+        document.getElementById('mobile-list-btn').textContent = '🌳 چارت';
+    }
+}
+
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 768) {
+        document.getElementById('chart-container').style.display = 'block';
+        document.getElementById('mobile-chart-list').style.display = 'none';
+        document.getElementById('mobile-list-btn').style.display = 'none';
+    } else {
+        document.getElementById('mobile-list-btn').style.display = 'inline-block';
+    }
+});
+
+// ===================== خروجی‌ها =====================
+async function exportAsImage() {
+    if (currentOrgChart) {
+        try {
+            await currentOrgChart.exportImg({ full: true });
+            toast('تصویر ذخیره شد', 'ok');
+        } catch(e) {
+            toast('خطا در خروجی تصویر', 'err');
+        }
+    } else {
+        toast('چارت درختی بارگذاری نشده است', 'err');
+    }
+}
+
+async function exportAsPDF() {
+    var container = document.getElementById('org-chart-container') || document.getElementById('chart-container');
+    if (!container || container.innerText.includes('نقشی برای نمایش') || container.innerText.includes('در حال بارگذاری')) {
+        toast('چارت بارگذاری نشده است', 'err');
+        return;
+    }
+
+    var origOverflow = container.style.overflow;
+    var origWidth   = container.style.width;
+    var origHeight  = container.style.height;
+
+    try {
+        container.style.overflow = 'visible';
+        container.style.width    = container.scrollWidth + 'px';
+        container.style.height   = container.scrollHeight + 'px';
+
+        var canvas = await html2canvas(container, {
+            scale: 3,
+            useCORS: true,
+            allowTaint: true,
+            backgroundColor: null,
+            width: container.scrollWidth,
+            height: container.scrollHeight,
+            windowWidth: container.scrollWidth,
+            windowHeight: container.scrollHeight
+        });
+
+        container.style.overflow = origOverflow;
+        container.style.width    = origWidth;
+        container.style.height   = origHeight;
+
+        var { jsPDF } = window.jspdf;
+        var pdf = new jsPDF('landscape', 'mm', 'a4');
+        var pageWidth  = pdf.internal.pageSize.getWidth();
+        var pageHeight = pdf.internal.pageSize.getHeight();
+        var imgWidth  = pageWidth;
+        var imgHeight = (canvas.height * imgWidth) / canvas.width;
+        if (imgHeight > pageHeight) {
+            imgHeight = pageHeight;
+            imgWidth  = (canvas.width * imgHeight) / canvas.height;
+        }
+
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, 0, imgWidth, imgHeight);
+        pdf.save('crisis_chart.pdf');
+        toast('PDF کامل با کیفیت ذخیره شد', 'ok');
+    } catch(e) {
+        console.error(e);
+        toast('خطا در خروجی PDF', 'err');
+        if (container) {
+            container.style.overflow = origOverflow || '';
+            container.style.width    = origWidth || '';
+            container.style.height   = origHeight || '';
+        }
+    }
+}
+
+function exportCSV() {
+    if (!chartDataCache || !chartDataCache.roles) return toast('داده‌ای برای صادرات نیست', 'err');
+    var roles = chartDataCache.roles;
+    var assignments = chartDataCache.assignments || [];
+    var assignMap = {};
+    assignments.forEach(function(a) {
+        if (!assignMap[a.id_nam_nagsh]) assignMap[a.id_nam_nagsh] = [];
+        assignMap[a.id_nam_nagsh].push(a.person_name);
+    });
+    var csv = 'کد نقش,نام نقش,توضیحات,سطح,والد,رنگ,پرسنل\n';
+    roles.forEach(function(r) {
+        var persons = (assignMap[r.ID_onvan_naghsh_bohran] || []).join(' - ');
+        csv += r.ID_onvan_naghsh_bohran + ',"' + (r.nam_onvan_naghsh_bohran || '') + '","' + (r.tozihat || '') + '",' + (r.mahal2 || 0) + ',' + (r.mahal1 || 0) + ',' + (r.rang_bohran || '') + ',"' + persons + '"\n';
+    });
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'chart_roles.csv';
+    link.click();
+    toast('فایل CSV نقش‌ها دانلود شد', 'ok');
+}
+
+// ===================== داشبورد =====================
+window.dashCharts = {};
+async function renderDashboard() {
+    if (!chartDataCache) await loadChart(true);
+    var data = chartDataCache;
+    if (!data || !data.roles) return;
+    var roles = data.roles;
+    var assignments = data.assignments || [];
+    document.getElementById('stat-roles').textContent = roles.length;
+    document.getElementById('stat-assigns').textContent = assignments.length;
+    var assignedRoleIds = new Set(assignments.map(function(a) { return a.id_nam_nagsh; }));
+    var emptyRoles = roles.filter(function(r) { return !assignedRoleIds.has(r.ID_onvan_naghsh_bohran); }).length;
+    document.getElementById('stat-empty').textContent = emptyRoles;
+    var avg = roles.length ? (assignments.length / roles.length).toFixed(1) : 0;
+    document.getElementById('stat-avg').textContent = avg;
+
+    var crisisMap = {};
+    var levelMap = {};
+    assignments.forEach(function(a) {
+        var c = a.crisis_name || 'نامشخص';
+        crisisMap[c] = (crisisMap[c] || 0) + 1;
+    });
+    roles.forEach(function(r) {
+        var lvl = r.mahal2 || 0;
+        levelMap[lvl] = (levelMap[lvl] || 0) + 1;
+    });
+
+    if (window.dashCharts) {
+        Object.values(window.dashCharts).forEach(function(c) { c.destroy(); });
+    }
+    window.dashCharts = {};
+
+    var ctx1 = document.getElementById('chart-crisis').getContext('2d');
+    window.dashCharts.crisis = new Chart(ctx1, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(crisisMap),
+            datasets: [{ data: Object.values(crisisMap), backgroundColor: ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6'] }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+    var ctx2 = document.getElementById('chart-levels').getContext('2d');
+    window.dashCharts.levels = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(levelMap).map(function(k) { return 'سطح ' + k; }),
+            datasets: [{ label: 'تعداد نقش', data: Object.values(levelMap), backgroundColor: '#3b82f6' }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+    });
+}
+
+// =================== نقش‌ها ===================
+async function loadRoles() {
+    var r = await fetch('/module/admin/crisis/roles/list'); var d = await r.json();
+    document.getElementById('role-count').textContent = d.items ? d.items.length : 0;
+    var html = '';
+    if (d.items && d.items.length) {
+        d.items.forEach(function(item) {
+            html += '<div class="list-item" draggable="true" data-id="' + item.ID_onvan_naghsh_bohran + '" ondragstart="handleDragStart(event)" ondragover="handleDragOver(event)" ondrop="handleDrop(event)">';
+            html += '<span class="color-dot" style="background:' + (item.rang_bohran || '#3498db') + '"></span>';
+            html += '<span class="item-id">#' + item.ID_onvan_naghsh_bohran + '</span>';
+            html += '<div class="item-info"><strong>' + escHTML(item.nam_onvan_naghsh_bohran) + '</strong><small>' + escHTML(item.tozihat || '') + ' | سطح: ' + (item.mahal2 || 0) + '</small></div>';
+            html += '<button class="btn btn-xs" onclick="moveRole(event, ' + item.ID_onvan_naghsh_bohran + ', \'up\')">▲</button>';
+            html += '<button class="btn btn-xs" onclick="moveRole(event, ' + item.ID_onvan_naghsh_bohran + ', \'down\')">▼</button>';
+            html += '<button class="btn btn-warning btn-xs" onclick="editRole(' + item.ID_onvan_naghsh_bohran + ')">📝</button>';
+            html += '<button class="btn btn-danger btn-xs" onclick="askDel(' + item.ID_onvan_naghsh_bohran + ', \'role\', \'' + escHTML(item.nam_onvan_naghsh_bohran).replace(/'/g, "\\'") + '\')">🗑️</button>';
+            html += '</div>';
+        });
+    } else html = '<div class="empty">نقشی تعریف نشده است</div>';
+    document.getElementById('role-list').innerHTML = html;
+}
+
+var draggedItem = null;
+function handleDragStart(e) {
+    draggedItem = this;
+    e.dataTransfer.effectAllowed = 'move';
+}
+function handleDragOver(e) { e.preventDefault(); }
+function handleDrop(e) {
+    e.stopPropagation();
+    if (draggedItem !== this) {
+        var draggedId = draggedItem.getAttribute('data-id');
+        var items = Array.from(document.querySelectorAll('#role-list .list-item'));
+        var draggedIndex = items.indexOf(draggedItem);
+        var droppedIndex = items.indexOf(this);
+        var fd = new FormData();
+        fd.append('id', draggedId);
+        fd.append('new_index', droppedIndex);
+        fetch('/module/admin/crisis/role/reorder', { method: 'POST', body: fd })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) { toast('ترتیب بروزرسانی شد', 'ok'); loadRoles(); loadChart(true); }
+                else toast('خطا در بروزرسانی', 'err');
+            })
+            .catch(function() { toast('خطا', 'err'); });
+    }
+    draggedItem = null;
+}
+
+async function moveRole(e, roleId, direction) {
+    e.stopPropagation();
+    var fd = new FormData(); fd.append('id', roleId); fd.append('direction', direction);
+    var r = await fetch('/module/admin/crisis/role/move', { method: 'POST', body: fd });
+    var d = await r.json();
+    toast(d.message, d.success ? 'ok' : 'err');
+    if (d.success) { loadRoles(); loadChart(true); chartDataCache = null; }
+}
+
+async function openRoleModal(editId) {
+    document.getElementById('role-edit-id').value = editId || '';
+    document.getElementById('role-modal-title').textContent = editId ? '✏️ ویرایش نقش' : '➕ نقش جدید';
+    var r = await fetch('/module/admin/crisis/roles/list'); var d = await r.json();
+    var opts = '<option value="">بدون والد</option>';
+    if (d.items) d.items.forEach(function(item) {
+        if (item.ID_onvan_naghsh_bohran != editId) opts += '<option value="' + item.ID_onvan_naghsh_bohran + '">' + escHTML(item.nam_onvan_naghsh_bohran) + '</option>';
+    });
+    document.getElementById('role-parent').innerHTML = opts;
+    if (editId) {
+        var rr = await fetch('/module/admin/crisis/role/get/' + editId); var rd = await rr.json();
+        if (rd.item) {
+            document.getElementById('role-name').value = rd.item.nam_onvan_naghsh_bohran || '';
+            document.getElementById('role-desc').value = rd.item.tozihat || '';
+            document.getElementById('role-parent').value = rd.item.mahal1 || '';
+            document.getElementById('role-level').value = rd.item.mahal2 || 1;
+            document.getElementById('role-order').value = rd.item.mahal4 || 1;
+            document.getElementById('role-color').value = rd.item.rang_bohran || '#3498db';
+        }
+    } else {
+        document.getElementById('role-name').value = '';
+        document.getElementById('role-desc').value = '';
+        document.getElementById('role-parent').value = '';
+        document.getElementById('role-level').value = 1;
+        document.getElementById('role-order').value = 1;
+        document.getElementById('role-color').value = '#3498db';
+    }
+    document.getElementById('role-modal').classList.add('show');
+    document.getElementById('role-name').focus();
+}
+function closeRoleModal() { document.getElementById('role-modal').classList.remove('show'); }
+
+async function saveRole() {
+    var name = document.getElementById('role-name').value.trim();
+    if (!name) { toast('نام نقش الزامی است', 'err'); return; }
+    var fd = new FormData();
+    fd.append('name', name); fd.append('desc', document.getElementById('role-desc').value);
+    fd.append('parent', document.getElementById('role-parent').value);
+    fd.append('level', document.getElementById('role-level').value);
+    fd.append('order', document.getElementById('role-order').value);
+    fd.append('color', document.getElementById('role-color').value);
+    var editId = document.getElementById('role-edit-id').value;
+    if (editId) fd.append('id', editId);
+    var url = editId ? '/module/admin/crisis/role/update' : '/module/admin/crisis/role/save';
+    var r = await fetch(url, { method: 'POST', body: fd }); var d = await r.json();
+    toast(d.message, d.success ? 'ok' : 'err');
+    if (d.success) { closeRoleModal(); loadRoles(); loadChart(true); chartDataCache = null; }
+}
+function editRole(id) { openRoleModal(id); }
+
+// =================== انتصابات ===================
+async function loadAssigns() {
+    var r = await fetch('/module/admin/crisis/assigns/list'); var d = await r.json();
+    document.getElementById('assign-count').textContent = d.items ? d.items.length : 0;
+    var html = '';
+    if (d.items && d.items.length) {
+        d.items.forEach(function(item) {
+            html += '<div class="list-item">';
+            html += '<span class="item-id">#' + item.ID_chart_bohran + '</span>';
+            html += '<div class="item-info"><strong>' + escHTML(item.person_name || '') + '</strong> → ' + escHTML(item.role_name || '') + '<small>' + escHTML(item.crisis_name || '') + ' | ' + escHTML(item.level_name || '') + '</small></div>';
+            html += '<button class="btn btn-warning btn-xs" onclick="editAssign(' + item.ID_chart_bohran + ')">📝</button>';
+            html += '<button class="btn btn-danger btn-xs" onclick="askDel(' + item.ID_chart_bohran + ', \'assign\', \'' + escHTML(item.person_name || '').replace(/'/g, "\\'") + '\')">🗑️</button>';
+            html += '</div>';
+        });
+    } else html = '<div class="empty">انتصابی ثبت نشده است</div>';
+    document.getElementById('assign-list').innerHTML = html;
+}
+
+async function openAssignModal(editId) {
+    document.getElementById('assign-edit-id').value = editId || '';
+    document.getElementById('assign-modal-title').textContent = editId ? '✏️ ویرایش انتصاب' : '➕ انتصاب جدید';
+    var [p, r, c, l] = await Promise.all([
+        fetch('/module/admin/crisis/persons/list'), fetch('/module/admin/crisis/roles/list'),
+        fetch('/module/admin/crisis/titles/list'), fetch('/module/admin/crisis/levels/list')
+    ]);
+    var pdata = await p.json(), rdata = await r.json(), cdata = await c.json(), ldata = await l.json();
+    function fillSelect(id, items, valueField, textField) {
+        var sel = document.getElementById(id);
+        sel.innerHTML = '<option value="">---</option>';
+        (items || []).forEach(function(x) { sel.innerHTML += '<option value="' + x[valueField] + '">' + escHTML(x[textField]) + '</option>'; });
+    }
+    fillSelect('assign-person', pdata.items, 'ID_person', 'FullName');
+    fillSelect('assign-role', rdata.items, 'ID_onvan_naghsh_bohran', 'nam_onvan_naghsh_bohran');
+    fillSelect('assign-crisis', cdata.items, 'ID_onvan_kod_o', 'nam_kod_o');
+    fillSelect('assign-level', ldata.items, 'Id_sath_bohran', 'nam_sath_bohran');
+    document.getElementById('assign-desc').value = '';
+    if (editId) {
+        var rr = await fetch('/module/admin/crisis/assign/get/' + editId); var rd = await rr.json();
+        if (rd.item) {
+            document.getElementById('assign-person').value = rd.item.id_person || '';
+            document.getElementById('assign-role').value = rd.item.id_nam_nagsh || '';
+            document.getElementById('assign-crisis').value = rd.item.nam_bohran || '';
+            document.getElementById('assign-level').value = rd.item.Id_sath_bohran || '';
+            document.getElementById('assign-desc').value = rd.item.description || '';
+        }
+    }
+    document.getElementById('assign-modal').classList.add('show');
+}
+function closeAssignModal() { document.getElementById('assign-modal').classList.remove('show'); }
+
+async function saveAssign() {
+    var person = document.getElementById('assign-person').value;
+    var role = document.getElementById('assign-role').value;
+    var crisis = document.getElementById('assign-crisis').value;
+    var level = document.getElementById('assign-level').value;
+    if (!person || !role || !crisis || !level) { toast('همه فیلدهای * الزامی هستند', 'err'); return; }
+    var fd = new FormData();
+    fd.append('person', person); fd.append('role', role); fd.append('crisis', crisis); fd.append('level', level);
+    fd.append('desc', document.getElementById('assign-desc').value);
+    var editId = document.getElementById('assign-edit-id').value;
+    if (editId) fd.append('id', editId);
+    var url = editId ? '/module/admin/crisis/assign/update' : '/module/admin/crisis/assign/save';
+    var r = await fetch(url, { method: 'POST', body: fd }); var d = await r.json();
+    toast(d.message, d.success ? 'ok' : 'err');
+    if (d.success) { closeAssignModal(); loadAssigns(); loadChart(true); chartDataCache = null; }
+}
+function editAssign(id) { openAssignModal(id); }
+
+// =================== عناوین ===================
+async function loadTitles() {
+    var r = await fetch('/module/admin/crisis/titles/list'); var d = await r.json();
+    document.getElementById('title-count').textContent = d.items ? d.items.length : 0;
+    var html = '';
+    if (d.items && d.items.length) {
+        d.items.forEach(function(item) {
+            html += '<div class="list-item" id="title-row-' + item.ID_onvan_kod_o + '">';
+            html += '<span class="item-id">#' + item.ID_onvan_kod_o + '</span>';
+            html += '<div class="item-info"><strong id="title-name-' + item.ID_onvan_kod_o + '">' + escHTML(item.nam_kod_o) + '</strong>';
+            html += '<input type="text" class="inline-edit-input" id="title-edit-' + item.ID_onvan_kod_o + '" value="' + escHTML(item.nam_kod_o) + '" style="display:none; width:250px;">';
+            html += '</div><div class="item-actions">';
+            html += '<button class="btn btn-success btn-xs" id="title-save-' + item.ID_onvan_kod_o + '" style="display:none;" onclick="saveTitle(' + item.ID_onvan_kod_o + ')">💾 ذخیره</button>';
+            html += '<button class="btn btn-warning btn-xs" id="title-edit-btn-' + item.ID_onvan_kod_o + '" onclick="editTitle(' + item.ID_onvan_kod_o + ')">✏️ ویرایش</button>';
+            html += '<button class="btn btn-danger btn-xs" onclick="askDel(' + item.ID_onvan_kod_o + ', \'title\', \'' + escHTML(item.nam_kod_o).replace(/'/g, "\\'") + '\')">🗑️</button>';
+            html += '</div></div>';
+        });
+    } else html = '<div class="empty">عنوانی تعریف نشده است</div>';
+    document.getElementById('title-list').innerHTML = html;
+}
+
+function editTitle(id) {
+    document.getElementById('title-name-' + id).style.display = 'none';
+    document.getElementById('title-edit-btn-' + id).style.display = 'none';
+    document.getElementById('title-edit-' + id).style.display = 'inline-block';
+    document.getElementById('title-save-' + id).style.display = 'inline-block';
+    document.getElementById('title-edit-' + id).focus();
+    document.getElementById('title-edit-' + id).onkeydown = function(e) { if (e.key === 'Enter') saveTitle(id); };
+}
+async function saveTitle(id) {
+    var newName = document.getElementById('title-edit-' + id).value.trim();
+    if (!newName) { toast('نام عنوان نمی‌تواند خالی باشد', 'err'); return; }
+    var fd = new FormData(); fd.append('id', id); fd.append('name', newName);
+    try {
+        var r = await fetch('/module/admin/crisis/title/update', { method: 'POST', body: fd });
+        var d = await r.json();
+        if (d.success) { toast('✅ عنوان ویرایش شد', 'ok'); loadTitles(); }
+        else toast('⛔ ' + d.message, 'err');
+    } catch(e) { toast('خطا', 'err'); }
+}
+async function addTitle() {
+    var name = document.getElementById('new-title').value.trim();
+    if (!name) { toast('عنوان الزامی است', 'err'); return; }
+    var fd = new FormData(); fd.append('name', name);
+    var r = await fetch('/module/admin/crisis/title/save', { method: 'POST', body: fd });
+    var d = await r.json();
+    toast(d.message, d.success ? 'ok' : 'err');
+    if (d.success) { document.getElementById('new-title').value = ''; loadTitles(); }
+}
+
+// =================== سطوح ===================
+async function loadLevels() {
+    var r = await fetch('/module/admin/crisis/levels/list'); var d = await r.json();
+    document.getElementById('level-count').textContent = d.items ? d.items.length : 0;
+    var html = '';
+    if (d.items && d.items.length) {
+        d.items.forEach(function(item) {
+            html += '<div class="list-item" id="level-row-' + item.Id_sath_bohran + '">';
+            html += '<span class="item-id">#' + item.Id_sath_bohran + '</span>';
+            html += '<div class="item-info"><strong id="level-name-' + item.Id_sath_bohran + '">' + escHTML(item.nam_sath_bohran) + '</strong>';
+            html += '<small id="level-desc-' + item.Id_sath_bohran + '">' + escHTML(item.tozaihat || '') + '</small>';
+            html += '<input type="text" class="inline-edit-input" id="level-edit-name-' + item.Id_sath_bohran + '" value="' + escHTML(item.nam_sath_bohran) + '" style="display:none; width:200px;">';
+            html += '<input type="text" class="inline-edit-input" id="level-edit-desc-' + item.Id_sath_bohran + '" value="' + escHTML(item.tozaihat || '') + '" placeholder="توضیحات" style="display:none; width:250px;">';
+            html += '</div><div class="item-actions">';
+            html += '<button class="btn btn-success btn-xs" id="level-save-' + item.Id_sath_bohran + '" style="display:none;" onclick="saveLevel(' + item.Id_sath_bohran + ')">💾 ذخیره</button>';
+            html += '<button class="btn btn-warning btn-xs" id="level-edit-btn-' + item.Id_sath_bohran + '" onclick="editLevel(' + item.Id_sath_bohran + ')">✏️ ویرایش</button>';
+            html += '<button class="btn btn-danger btn-xs" onclick="askDel(' + item.Id_sath_bohran + ', \'level\', \'' + escHTML(item.nam_sath_bohran).replace(/'/g, "\\'") + '\')">🗑️</button>';
+            html += '</div></div>';
+        });
+    } else html = '<div class="empty">سطحی تعریف نشده است</div>';
+    document.getElementById('level-list').innerHTML = html;
+}
+
+function editLevel(id) {
+    document.getElementById('level-name-' + id).style.display = 'none';
+    document.getElementById('level-desc-' + id).style.display = 'none';
+    document.getElementById('level-edit-btn-' + id).style.display = 'none';
+    document.getElementById('level-edit-name-' + id).style.display = 'inline-block';
+    document.getElementById('level-edit-desc-' + id).style.display = 'inline-block';
+    document.getElementById('level-save-' + id).style.display = 'inline-block';
+    document.getElementById('level-edit-name-' + id).focus();
+    document.getElementById('level-edit-name-' + id).onkeydown = function(e) { if (e.key === 'Enter') saveLevel(id); };
+    document.getElementById('level-edit-desc-' + id).onkeydown = function(e) { if (e.key === 'Enter') saveLevel(id); };
+}
+async function saveLevel(id) {
+    var newName = document.getElementById('level-edit-name-' + id).value.trim();
+    var newDesc = document.getElementById('level-edit-desc-' + id).value.trim();
+    if (!newName) { toast('نام سطح نمی‌تواند خالی باشد', 'err'); return; }
+    var fd = new FormData(); fd.append('id', id); fd.append('name', newName); fd.append('desc', newDesc);
+    try {
+        var r = await fetch('/module/admin/crisis/level/update', { method: 'POST', body: fd });
+        var d = await r.json();
+        if (d.success) { toast('✅ سطح ویرایش شد', 'ok'); loadLevels(); loadChartLevels(); }
+        else toast('⛔ ' + d.message, 'err');
+    } catch(e) { toast('خطا', 'err'); }
+}
+async function addLevel() {
+    var name = document.getElementById('new-level-name').value.trim();
+    if (!name) { toast('نام سطح الزامی است', 'err'); return; }
+    var fd = new FormData(); fd.append('name', name); fd.append('desc', document.getElementById('new-level-desc').value);
+    var r = await fetch('/module/admin/crisis/level/save', { method: 'POST', body: fd });
+    var d = await r.json();
+    toast(d.message, d.success ? 'ok' : 'err');
+    if (d.success) { document.getElementById('new-level-name').value = ''; document.getElementById('new-level-desc').value = ''; loadLevels(); loadChartLevels(); }
+}
+
+// ===== راه‌اندازی اولیه =====
+document.addEventListener('DOMContentLoaded', function() {
+    loadChart();
+    loadChartLevels();
+    if (window.innerWidth <= 768) document.getElementById('mobile-list-btn').style.display = 'inline-block';
+});
+</script>
+</body>
+</html>
