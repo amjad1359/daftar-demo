@@ -1,7 +1,3 @@
-"""
-مدیریت اتصال به دیتابیس MySQL
-با Connection Pooling برای کارایی بالا
-"""
 
 import mysql.connector
 from mysql.connector import Error, pooling
@@ -17,16 +13,18 @@ def get_pool():
         try:
             _pool = pooling.MySQLConnectionPool(
                 pool_name="daftar_pool",
-                pool_size=10,          # حداکثر ۱۰ اتصال هم‌زمان
+                pool_size=10,
                 pool_reset_session=False,
                 host=Config.MYSQL_HOST,
+                port=Config.MYSQL_PORT,          # ← اضافه شود
                 user=Config.MYSQL_USER,
                 password=Config.MYSQL_PASSWORD,
                 database=Config.MYSQL_DATABASE,
                 charset=Config.MYSQL_CHARSET,
                 use_unicode=True,
-                autocommit=True        # حالت خودکار
-            )
+                autocommit=True
+            )          
+            
             print("[DB] Connection pool created successfully.")
         except Error as e:
             print(f"[DB ERROR] Pool creation failed: {e}")
@@ -50,13 +48,14 @@ def get_connection():
         try:
             conn = mysql.connector.connect(
                 host=Config.MYSQL_HOST,
+                port=Config.MYSQL_PORT,          # ← اضافه شود
                 user=Config.MYSQL_USER,
                 password=Config.MYSQL_PASSWORD,
                 database=Config.MYSQL_DATABASE,
                 charset=Config.MYSQL_CHARSET,
                 use_unicode=True,
                 autocommit=True
-            )
+            )           
             return conn
         except Error as e:
             print(f"[DB ERROR] Direct connection failed: {e}")
@@ -127,4 +126,6 @@ def query(sql, params=None, fetch_one=False, fetch_all=False, commit=False):
                 conn.close()
             except Exception as e:
                 print(f"[DB WARN] Could not close connection cleanly: {e}")
+        
+
         
