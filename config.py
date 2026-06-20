@@ -1,14 +1,13 @@
-"""
-تنظیمات سراسری برنامه
-"""
+import os
 
 class Config:
-    # دیتابیس
-    MYSQL_HOST = "localhost"
-    MYSQL_USER = "root"
-    MYSQL_PASSWORD = ""
-    MYSQL_DATABASE = "daftar5"
-    MYSQL_CHARSET = "utf8mb4"
+    # دیتابیس – خواندن از متغیرهای محیطی با fallback به مقادیر لوکال
+    MYSQL_HOST     = os.environ.get('DB_HOST', 'localhost')
+    MYSQL_PORT     = int(os.environ.get('DB_PORT', 3306))
+    MYSQL_USER     = os.environ.get('DB_USER', 'root')
+    MYSQL_PASSWORD = os.environ.get('DB_PASSWORD', '')
+    MYSQL_DATABASE = os.environ.get('DB_NAME', 'daftar5')
+    MYSQL_CHARSET  = 'utf8mb4'
     
     # مسیرها
     UPLOAD_FOLDER = "uploads"
@@ -16,6 +15,6 @@ class Config:
     
     # امنیت
     SESSION_TIMEOUT = 3600  # ۱ ساعت
-    SECRET_KEY = "daft_nursing_permanent_secret_key_1394_fixed"  # یک رشته ثابت و امن
-    
+    SECRET_KEY = "daft_nursing_permanent_secret_key_1394_fixed"
+
     
